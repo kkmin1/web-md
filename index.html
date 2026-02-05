@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
 <html lang="ko">
 
@@ -148,4 +149,99 @@ function greet() {
     <script src="script.js"></script>
 </body>
 
+=======
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Markdown Editor</title>
+    <meta name="description" content="A beautiful, real-time Markdown editor with a luxury interface.">
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+    <!-- Highlight.js for code highlighting in preview -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo">
+                <span class="gradient-text">Nova</span> Markdown
+            </div>
+            <div class="actions">
+                <button id="copy-btn" title="Copy for Google Keep (Preserves Bold, Headings)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    Copy for Keep
+                </button>
+                <div class="status-indicator" id="status">Syncing...</div>
+            </div>
+        </header>
+
+        <main>
+            <section class="editor-pane">
+                <div class="pane-header">
+                    <span>Editor</span>
+                    <span class="language">Markdown</span>
+                </div>
+                <textarea id="markdown-input" placeholder="Type your markdown here..." spellcheck="false"># Hello World
+
+This is a **Premium** Markdown Editor.
+
+## Features
+- Real-time preview
+- Syntax highlighting
+- Sleek UI
+- Glassmorphism effect
+
+```javascript
+function greet() {
+  console.log("Hello from Nova!");
+}
+```
+</textarea>
+            </section>
+
+            <section class="preview-pane">
+                <div class="pane-header">
+                    <span>Rich Text Preview</span>
+                    <span class="language">Google Keep Style</span>
+                </div>
+                <div id="keep-preview" class="markdown-body"></div>
+                <div class="pane-action-bar">
+                    <button id="copy-all-btn" class="secondary-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Copy All Content
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <div class="stat">Words: <span id="word-count">0</span></div>
+            <div class="stat">Chars: <span id="char-count">0</span></div>
+            <div class="credits">Crafted with ✨ by Antigravity</div>
+        </footer>
+    </div>
+
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="script.js"></script>
+</body>
+
+>>>>>>> origin/main
 </html>
