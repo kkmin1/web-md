@@ -2,9 +2,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('markdown-input');
     const preview = document.getElementById('keep-preview');
     const copyBtn = document.getElementById('copy-btn');
+    const openBtn = document.getElementById('open-btn');
+    const saveBtn = document.getElementById('save-btn');
+    const fileInput = document.getElementById('file-input');
     const status = document.getElementById('status');
     const wordCount = document.getElementById('word-count');
     const charCount = document.getElementById('char-count');
+    let currentFileName = 'untitled.md';
 
     // Configure Marked.js for Rich Text rendering with KaTeX support
     // Configure Marked.js extensions
@@ -75,6 +79,63 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     };
 
+    const setStatus = (message) => {
+        status.textContent = message;
+        status.style.opacity = '1';
+    };
+
+    const readFileAsText = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(file, 'utf-8');
+    });
+
+    const saveMarkdownFile = async () => {
+        const content = input.value;
+        const defaultName = currentFileName.endsWith('.md') ? currentFileName : `${currentFileName}.md`;
+
+        try {
+            if ('showSaveFilePicker' in window) {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: defaultName,
+                    types: [{
+                        description: 'Markdown Files',
+                        accept: {
+                            'text/markdown': ['.md'],
+                            'text/plain': ['.md']
+                        }
+                    }]
+                });
+                const writable = await handle.createWritable();
+                await writable.write(content);
+                await writable.close();
+
+                currentFileName = handle.name || defaultName;
+                setStatus(`Saved: ${currentFileName}`);
+                return;
+            }
+
+            const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = defaultName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            setStatus(`Saved: ${defaultName}`);
+        } catch (error) {
+            if (error && error.name === 'AbortError') {
+                setStatus('Save canceled');
+                return;
+            }
+            console.error('File save error:', error);
+            setStatus('Failed to save file');
+        }
+    };
+
     // Initial render
     updatePreview();
 
@@ -82,6 +143,41 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('input', () => {
         status.textContent = 'Formatting...';
         updatePreview();
+    });
+
+    if (openBtn && fileInput) {
+        openBtn.addEventListener('click', () => fileInput.click());
+    }
+
+    if (fileInput) {
+        fileInput.addEventListener('change', async (e) => {
+            const [file] = e.target.files || [];
+            if (!file) return;
+
+            try {
+                const text = await readFileAsText(file);
+                input.value = text;
+                currentFileName = file.name || 'untitled.md';
+                updatePreview();
+                setStatus(`Loaded: ${currentFileName}`);
+            } catch (error) {
+                console.error('File read error:', error);
+                setStatus('Failed to load file');
+            } finally {
+                fileInput.value = '';
+            }
+        });
+    }
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveMarkdownFile);
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+            e.preventDefault();
+            saveMarkdownFile();
+        }
     });
 
     /**
