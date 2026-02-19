@@ -263,6 +263,23 @@ textarea {
     color: #d93025;
 }
 
+.markdown-body img,
+.markdown-body .inline-svg-wrapper svg {
+    display: inline-block;
+    max-width: 100%;
+    height: auto;
+    margin: 0.25rem 0;
+    vertical-align: middle;
+}
+
+.markdown-body .md-svg-object {
+    display: block;
+    width: 100%;
+    min-height: 260px;
+    border: 0;
+    margin: 0.5rem 0;
+}
+
 .markdown-body pre {
     background: #f8f9fa;
     padding: 1rem;

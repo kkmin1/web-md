@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const wordCount = document.getElementById('word-count');
     const charCount = document.getElementById('char-count');
     let currentFileName = 'untitled.md';
+    let currentFileType = 'markdown';
 
     // Configure Marked.js for Rich Text rendering with KaTeX support
     // Configure Marked.js extensions
@@ -30,7 +31,83 @@ document.addEventListener('DOMContentLoaded', () => {
         gfm: true
     });
 
+    const escapeHtml = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    const isSvgPath = (path) => typeof path === 'string' && /\.svg(\?.*)?(#.*)?$/i.test(path.trim());
+
+    marked.use({
+        renderer: {
+            image(hrefOrToken, titleArg, textArg) {
+                const tokenMode = typeof hrefOrToken === 'object' && hrefOrToken !== null;
+                const href = tokenMode ? (hrefOrToken.href || '') : (hrefOrToken || '');
+                const rawTitle = tokenMode ? hrefOrToken.title : titleArg;
+                const rawAlt = tokenMode ? (hrefOrToken.text || '') : (textArg || '');
+                const title = rawTitle ? ` title="${escapeHtml(rawTitle)}"` : '';
+                const alt = escapeHtml(rawAlt);
+
+                if (isSvgPath(href)) {
+                    const absoluteHref = escapeHtml(new URL(href, window.location.href).href);
+                    return `<object class="md-svg-object" type="image/svg+xml" data="${absoluteHref}" aria-label="${alt}"${title}>${alt}</object>`;
+                }
+
+                return `<img src="${escapeHtml(href)}" alt="${alt}"${title}>`;
+            }
+        }
+    });
+
+    const hydrateSvgImages = async () => {
+        // Local file mode (file://) often blocks fetch for relative SVG paths.
+        // In that case, keep default Markdown <img src="..."> rendering.
+        if (window.location.protocol === 'file:') {
+            return;
+        }
+
+        const svgImages = Array.from(preview.querySelectorAll('img')).filter((img) => isSvgPath(img.getAttribute('src') || ''));
+
+        await Promise.all(svgImages.map(async (img) => {
+            const src = img.getAttribute('src');
+            if (!src) return;
+
+            try {
+                const response = await fetch(src);
+                if (!response.ok) return;
+
+                const svgText = await response.text();
+                if (!/<svg[\s>]/i.test(svgText)) return;
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'inline-svg-wrapper';
+                wrapper.innerHTML = svgText;
+
+                const svgEl = wrapper.querySelector('svg');
+                if (!svgEl) return;
+
+                if (!svgEl.getAttribute('role')) {
+                    svgEl.setAttribute('role', 'img');
+                }
+                if (!svgEl.getAttribute('aria-label')) {
+                    svgEl.setAttribute('aria-label', img.getAttribute('alt') || 'svg image');
+                }
+
+                img.replaceWith(wrapper);
+            } catch (error) {
+                console.warn('SVG inline hydration failed:', src, error);
+            }
+        }));
+    };
+
     const updatePreview = () => {
+        if (currentFileType === 'svg') {
+            renderSvgPreview(input.value);
+            setStatus('Ready for Keep');
+            return;
+        }
+
         let value = input.value;
 
         // Pre-process: Automatically wrap \begin{env}...\end{env} with $$ if not already wrapped
@@ -57,6 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Render Markdown to HTML for the preview
         preview.innerHTML = marked.parse(value);
+        hydrateSvgImages();
 
         // Apply syntax highlighting
         if (typeof hljs !== 'undefined') {
@@ -90,6 +168,18 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.onerror = () => reject(reader.error);
         reader.readAsText(file, 'utf-8');
     });
+
+    const isSvgFile = (file) => {
+        const name = (file.name || '').toLowerCase();
+        return file.type === 'image/svg+xml' || name.endsWith('.svg');
+    };
+
+    const renderSvgPreview = (svgContent) => {
+        preview.innerHTML = svgContent;
+        const text = svgContent.trim();
+        wordCount.textContent = text ? text.split(/\s+/).length : 0;
+        charCount.textContent = svgContent.length;
+    };
 
     const saveMarkdownFile = async () => {
         const content = input.value;
@@ -158,7 +248,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const text = await readFileAsText(file);
                 input.value = text;
                 currentFileName = file.name || 'untitled.md';
-                updatePreview();
+                currentFileType = isSvgFile(file) ? 'svg' : 'markdown';
+
+                if (currentFileType === 'svg') {
+                    renderSvgPreview(text);
+                } else {
+                    updatePreview();
+                }
+
                 setStatus(`Loaded: ${currentFileName}`);
             } catch (error) {
                 console.error('File read error:', error);
