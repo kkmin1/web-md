@@ -17,6 +17,25 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <!-- KaTeX for LaTeX rendering -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked-katex-extension@5.1.2/lib/index.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="LatexTable.js"></script>
+    <script src="script.js"></script>
+
+
+    <style>
+        /* 표 주변의 여백이나 그림자 등 추가 디자인 (선택 사항) */
+        .latex-table-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+    </style>
 </head>
 
 <body>
@@ -81,10 +100,13 @@ This is a **Premium** Markdown Editor.
 
 ![svg](diagram.svg)
 
+
 ## LaTeX 수식 Example
 Inline math: $f(x) = \int_{-\infty}^\infty \hat{f}(\xi) e^{2\pi i \xi x} d\xi$
 <br>
 Block math: $$f(x) = \int_{-\infty}^\infty \hat{f}(\xi) e^{2\pi i \xi x} d\xi$$
+
+이 행렬의 고유값이 $\alpha$와 $\beta$이며, 대각화를 통해 일반항을 유도할 수 있습니다.
 
 행렬:
 
@@ -112,6 +134,15 @@ function greet() {
 | **협조** | -1,-1 | -9,0 |
 | **배신** | 0,-9 | -5,-5 |
 
+<h2>여행 상품 가격표</h2>
+
+\begin{tabular}{|c|c|c|c|}
+\hline
+\diagbox{가격}{나이} & \textbf{성인} & \textbf{아동(12세 미만)} & \textbf{유아(2세 미만)} \\ \hline \hline
+기본 상품가 & 500,000 & 150,000 & 70,000 \\ \hline
+유류 할증료 & 80,000 & 80,000 & 0 \\ \hline
+\color{red}{총 가격} & 580,000 & 230,000 & 70,000 \\ \hline
+\end{tabular}
 </textarea>
             </section>
 
@@ -141,12 +172,7 @@ function greet() {
         </footer>
     </div>
 
-    <!-- Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked-katex-extension@5.1.2/lib/index.umd.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script src="script.js"></script>
+
 </body>
 
 </html>

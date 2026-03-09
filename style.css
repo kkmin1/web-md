@@ -332,6 +332,28 @@ textarea {
     font-size: 1.1em !important;
 }
 
+/* Fix for broken segments in large delimiters (braces, parentheses) on some screens */
+.katex .vlist-t {
+    border-collapse: collapse;
+}
+
+.katex .vlist-s {
+    display: none;
+}
+
+.katex .vlist-r {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ensure segments overlap slightly to bridge subpixel gaps */
+.katex .brace-left,
+.katex .brace-right,
+.katex .brace-center,
+.katex .mord.sqrt .vlist-t2 {
+    transform: scale(1.001);
+}
+
 /* Footer */
 footer {
     height: var(--footer-height);

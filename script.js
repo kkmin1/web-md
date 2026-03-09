@@ -14,11 +14,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Configure Marked.js for Rich Text rendering with KaTeX support
     // Configure Marked.js extensions
     if (typeof markedKatex !== 'undefined') {
-        // Use marked.use() and also ensure we can call it directly if needed
         marked.use(markedKatex({
             throwOnError: false,
             output: 'html',
-            displayMode: true
+            nonStandard: true,
+            katexOptions: {
+                minRuleThickness: 0.05
+            }
         }));
         console.log("KaTeX extension loaded");
     } else {
@@ -110,6 +112,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let value = input.value;
 
+        // Pre-process: Wrap LaTeX tables in pre tags for LatexTable.js
+        // We look for optional (단위: 원) and \arrayrulecolor before \begin{tabular}
+        // This regex ensures we capture the surrounding config for LatexTable.js
+        value = value.replace(/(?:\(단위\s?:\s?.+?\)\s*)?(?:\\arrayrulecolor\{.*\}\s*)?\\begin\{tabular\}[^]*?\\end\{tabular\}/g, (match) => {
+            return `<pre class="latex-table-code">\n${match}\n</pre>`;
+        });
+
         // Pre-process: Automatically wrap \begin{env}...\end{env} with $$ if not already wrapped
         value = value.replace(/\$\$[\s\S]*?\$\$|\\begin\{([a-zA-Z]*\*?)\}[\s\S]*?\\end\{\1\}/gm, (match) => {
             if (match.startsWith('$$')) return match;
@@ -119,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Pre-process: Fix CJK Bold/Italic boundary issues (e.g., **강조**에)
         const protectedBlocks = [];
         // Protect code and math blocks while we process bold/italic
-        value = value.replace(/(```[\s\S]*?```|`[^`]*?`|\$\$[\s\S]*?\$\$|\\begin\{[a-zA-Z]*\*?\}[\s\S]*?\\end\{[a-zA-Z]*\*?\})/g, (match) => {
+        value = value.replace(/(```[\s\S]*?```|`[^`]*?`|\$\$[\s\S]*?\$\$|\$[^$\n]+?\$|\\begin\{([a-zA-Z]*\*?)\}[\s\S]*?\\end\{\2\})/g, (match) => {
             protectedBlocks.push(match);
             return `__CJK_PROT_${protectedBlocks.length - 1}__`;
         });
@@ -134,6 +143,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Render Markdown to HTML for the preview
         preview.innerHTML = marked.parse(value);
+
+        // Let LatexTable.js parse and render the <pre class="latex-table-code"> blocks
+        if (typeof LaTeXTable !== 'undefined') {
+            LaTeXTable.renderAll();
+        }
+
         hydrateSvgImages();
 
         // Apply syntax highlighting
