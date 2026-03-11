@@ -133,6 +133,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return `__CJK_PROT_${protectedBlocks.length - 1}__`;
         });
 
+        // Keep single-tilde pairs literal (~text~) while preserving ~~text~~ strikethrough.
+        value = value.replace(/(^|[^~\\])~(?=[^\s~])([^\n]*?[^\s~])~(?!~)/gm, '$1\\~$2\\~');
+
         // Apply robust bold: **text**
         value = value.replace(/\*\*([^\*\s](?:[\s\S]*?[^\*\s])?)\*\*/g, '<strong>$1</strong>');
         // Apply robust italic: *text* (avoid matching across newlines or nested stars)
