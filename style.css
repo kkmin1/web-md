@@ -263,23 +263,6 @@ textarea {
     color: #d93025;
 }
 
-.markdown-body img,
-.markdown-body .inline-svg-wrapper svg {
-    display: inline-block;
-    max-width: 100%;
-    height: auto;
-    margin: 0.25rem 0;
-    vertical-align: middle;
-}
-
-.markdown-body .md-svg-object {
-    display: block;
-    width: 100%;
-    min-height: 260px;
-    border: 0;
-    margin: 0.5rem 0;
-}
-
 .markdown-body pre {
     background: #f8f9fa;
     padding: 1rem;
@@ -321,37 +304,15 @@ textarea {
     background-color: #fafafa;
 }
 
-/* KaTeX Styles */
-.katex-display {
-    margin: 1.5rem 0 !important;
-    overflow-x: auto;
-    overflow-y: hidden;
+/* LaTeX SVG (via latex.js / upmath.me) */
+.latex-svg {
+    vertical-align: middle;
+    max-width: 100%;
 }
 
-.katex {
-    font-size: 1.1em !important;
-}
-
-/* Fix for broken segments in large delimiters (braces, parentheses) on some screens */
-.katex .vlist-t {
-    border-collapse: collapse;
-}
-
-.katex .vlist-s {
-    display: none;
-}
-
-.katex .vlist-r {
-    display: flex;
-    flex-direction: column;
-}
-
-/* Ensure segments overlap slightly to bridge subpixel gaps */
-.katex .brace-left,
-.katex .brace-right,
-.katex .brace-center,
-.katex .mord.sqrt .vlist-t2 {
-    transform: scale(1.001);
+/* Centered elements */
+.markdown-body p[align="center"] {
+    text-align: center;
 }
 
 /* Footer */

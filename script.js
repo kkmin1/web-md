@@ -1,389 +1,236 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const input = document.getElementById('markdown-input');
-    const preview = document.getElementById('keep-preview');
-    const copyBtn = document.getElementById('copy-btn');
-    const openBtn = document.getElementById('open-btn');
-    const saveBtn = document.getElementById('save-btn');
-    const fileInput = document.getElementById('file-input');
-    const status = document.getElementById('status');
-    const wordCount = document.getElementById('word-count');
-    const charCount = document.getElementById('char-count');
+    const input    = document.getElementById('markdown-input');
+    const preview  = document.getElementById('keep-preview');
+    const copyBtn  = document.getElementById('copy-btn');
+    const openBtn  = document.getElementById('open-btn');
+    const saveBtn  = document.getElementById('save-btn');
+    const fileInput= document.getElementById('file-input');
+    const status   = document.getElementById('status');
+    const wordCount= document.getElementById('word-count');
+    const charCount= document.getElementById('char-count');
     let currentFileName = 'untitled.md';
     let currentFileType = 'markdown';
 
-    // Configure Marked.js for Rich Text rendering with KaTeX support
-    // Configure Marked.js extensions
-    if (typeof markedKatex !== 'undefined') {
-        marked.use(markedKatex({
-            throwOnError: false,
-            output: 'html',
-            nonStandard: true,
-            katexOptions: {
-                minRuleThickness: 0.05
-            }
-        }));
-        console.log("KaTeX extension loaded");
-    } else {
-        console.error("markedKatex not found!");
-    }
+    const UPMATH = 'https://i.upmath.me/svg/';
 
-    // Configure other options
-    marked.setOptions({
-        breaks: true,
-        gfm: true
-    });
+    marked.setOptions({ breaks: true, gfm: true });
 
-    const escapeHtml = (value) => String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    const escapeHtml = v => String(v ?? '')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
-    const isSvgPath = (path) => typeof path === 'string' && /\.svg(\?.*)?(#.*)?$/i.test(path.trim());
+    const isSvgPath = p => typeof p === 'string' && /\.svg(\?.*)?(#.*)?$/i.test(p.trim());
 
     marked.use({
         renderer: {
-            image(hrefOrToken, titleArg, textArg) {
-                const tokenMode = typeof hrefOrToken === 'object' && hrefOrToken !== null;
-                const href = tokenMode ? (hrefOrToken.href || '') : (hrefOrToken || '');
-                const rawTitle = tokenMode ? hrefOrToken.title : titleArg;
-                const rawAlt = tokenMode ? (hrefOrToken.text || '') : (textArg || '');
-                const title = rawTitle ? ` title="${escapeHtml(rawTitle)}"` : '';
-                const alt = escapeHtml(rawAlt);
-
+            image(t, tA, tX) {
+                const tm = typeof t === 'object' && t !== null;
+                const href = tm ? (t.href||'') : (t||'');
+                const alt  = escapeHtml(tm ? (t.text||'') : (tX||''));
+                const ttl  = (tm ? t.title : tA) ? ` title="${escapeHtml(tm?t.title:tA)}"` : '';
                 if (isSvgPath(href)) {
-                    const absoluteHref = escapeHtml(new URL(href, window.location.href).href);
-                    return `<object class="md-svg-object" type="image/svg+xml" data="${absoluteHref}" aria-label="${alt}"${title}>${alt}</object>`;
+                    const abs = escapeHtml(new URL(href, location.href).href);
+                    return `<object class="md-svg-object" type="image/svg+xml" data="${abs}" aria-label="${alt}"${ttl}>${alt}</object>`;
                 }
-
-                return `<img src="${escapeHtml(href)}" alt="${alt}"${title}>`;
+                return `<img src="${escapeHtml(href)}" alt="${alt}"${ttl}>`;
             }
         }
     });
 
-    const hydrateSvgImages = async () => {
-        // Local file mode (file://) often blocks fetch for relative SVG paths.
-        // In that case, keep default Markdown <img src="..."> rendering.
-        if (window.location.protocol === 'file:') {
-            return;
-        }
+    /* Convert a LaTeX formula to an upmath.me img tag */
+    function mathImg(formula, block) {
+        // Inline math: wrap with \textstyle so upmath renders at text size
+        const tex = block ? formula : `{\\textstyle ${formula}}`;
+        const url = UPMATH + encodeURIComponent(tex);
+        const alt = formula.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        const img = `<img src="${url}" alt="${alt}" class="latex-svg" style="vertical-align:middle;max-width:100%;">`;
+        return block
+            ? `<div style="text-align:center;margin:1.2em 0">${img}</div>`
+            : img;
+    }
 
-        const svgImages = Array.from(preview.querySelectorAll('img')).filter((img) => isSvgPath(img.getAttribute('src') || ''));
+    /* Pre-process markdown: replace $$...$$ and $...$ with <img> BEFORE marked */
+    function processMath(value) {
+        // Protect code blocks and tabular <pre> from math substitution
+        const codePh = [];
+        value = value.replace(/(```[\s\S]*?```|`[^`\n]+`|<pre[\s\S]*?<\/pre>)/g, m => {
+            codePh.push(m); return `\x00C${codePh.length - 1}\x00`;
+        });
 
-        await Promise.all(svgImages.map(async (img) => {
-            const src = img.getAttribute('src');
-            if (!src) return;
+        // Normalize single $...$ → $$...$$ (protect existing $$ first)
+        const dblPh = [];
+        value = value.replace(/\$\$[\s\S]*?\$\$/g, m => {
+            dblPh.push(m); return `\x00D${dblPh.length - 1}\x00`;
+        });
+        value = value.replace(/(?<!\$)\$(?!\$)([^\n$]+?)\$(?!\$)/g, (_, f) => `$$${f}$$`);
+        value = value.replace(/\x00D(\d+)\x00/g, (_, i) => dblPh[+i]);
 
+        // Split by $$...$$ to determine block vs inline from context
+        const parts = value.split(/(\$\$[\s\S]*?\$\$)/g);
+        value = parts.map((part, i) => {
+            if (i % 2 === 0) return part;           // plain text
+            const formula = part.slice(2, -2);
+            const prev = parts[i - 1] || '';
+            const next = parts[i + 1] || '';
+            const prevLine = prev.split('\n').pop();   // text on same line before $$
+            const nextLine = (next.split('\n')[0]) || ''; // text on same line after $$
+            const isBlock  = /^\s*$/.test(prevLine) && /^\s*$/.test(nextLine);
+            return mathImg(formula, isBlock);
+        }).join('');
+
+        // Restore code/pre blocks
+        value = value.replace(/\x00C(\d+)\x00/g, (_, i) => codePh[+i]);
+        return value;
+    }
+
+    const hydrateSvg = async () => {
+        if (location.protocol === 'file:') return;
+        const imgs = [...preview.querySelectorAll('img')].filter(i => isSvgPath(i.getAttribute('src')||''));
+        await Promise.all(imgs.map(async img => {
+            const src = img.getAttribute('src'); if (!src) return;
             try {
-                const response = await fetch(src);
-                if (!response.ok) return;
-
-                const svgText = await response.text();
-                if (!/<svg[\s>]/i.test(svgText)) return;
-
-                const wrapper = document.createElement('div');
-                wrapper.className = 'inline-svg-wrapper';
-                wrapper.innerHTML = svgText;
-
-                const svgEl = wrapper.querySelector('svg');
-                if (!svgEl) return;
-
-                if (!svgEl.getAttribute('role')) {
-                    svgEl.setAttribute('role', 'img');
-                }
-                if (!svgEl.getAttribute('aria-label')) {
-                    svgEl.setAttribute('aria-label', img.getAttribute('alt') || 'svg image');
-                }
-
-                img.replaceWith(wrapper);
-            } catch (error) {
-                console.warn('SVG inline hydration failed:', src, error);
-            }
+                const r = await fetch(src); if (!r.ok) return;
+                const txt = await r.text(); if (!/<svg[\s>]/i.test(txt)) return;
+                const w = document.createElement('div');
+                w.className = 'inline-svg-wrapper'; w.innerHTML = txt;
+                const svgEl = w.querySelector('svg'); if (!svgEl) return;
+                svgEl.setAttribute('role','img');
+                svgEl.setAttribute('aria-label', img.getAttribute('alt')||'svg');
+                img.replaceWith(w);
+            } catch {}
         }));
     };
 
     const updatePreview = () => {
         if (currentFileType === 'svg') {
-            renderSvgPreview(input.value);
-            setStatus('Ready for Keep');
-            return;
+            preview.innerHTML = input.value;
+            setStatus('Ready for Keep'); return;
         }
 
         let value = input.value;
 
-        // Pre-process: Wrap LaTeX tables in pre tags for LatexTable.js
-        // We look for optional (단위: 원) and \arrayrulecolor before \begin{tabular}
-        // This regex ensures we capture the surrounding config for LatexTable.js
-        value = value.replace(/(?:\(단위\s?:\s?.+?\)\s*)?(?:\\arrayrulecolor\{.*\}\s*)?\\begin\{tabular\}[^]*?\\end\{tabular\}/g, (match) => {
-            return `<pre class="latex-table-code">\n${match}\n</pre>`;
+        // 1. Wrap \begin{tabular} for LatexTable.js
+        value = value.replace(
+            /(?:\(단위\s?:\s?.+?\)\s*)?(?:\\arrayrulecolor\{.*\}\s*)?\\begin\{tabular\}[\s\S]*?\\end\{tabular\}/g,
+            m => `<pre class="latex-table-code">\n${m}\n</pre>`
+        );
+
+        // 2. Convert math to <img> before marked sees it
+        value = processMath(value);
+
+        // 3. CJK bold/italic fix (math is now <img>, protect HTML and code)
+        const prot = [];
+        value = value.replace(/(```[\s\S]*?```|`[^`\n]+`|<[^>]+>)/g, m => {
+            prot.push(m); return `\x00P${prot.length - 1}\x00`;
         });
-
-        // Pre-process: Automatically wrap \begin{env}...\end{env} with $$ if not already wrapped
-        value = value.replace(/\$\$[\s\S]*?\$\$|\\begin\{([a-zA-Z]*\*?)\}[\s\S]*?\\end\{\1\}/gm, (match) => {
-            if (match.startsWith('$$')) return match;
-            return `$$\n${match}\n$$`;
-        });
-
-        // Pre-process: Fix CJK Bold/Italic boundary issues (e.g., **강조**에)
-        const protectedBlocks = [];
-        // Protect code and math blocks while we process bold/italic
-        value = value.replace(/(```[\s\S]*?```|`[^`]*?`|\$\$[\s\S]*?\$\$|\$[^$\n]+?\$|\\begin\{([a-zA-Z]*\*?)\}[\s\S]*?\\end\{\2\})/g, (match) => {
-            protectedBlocks.push(match);
-            return `__CJK_PROT_${protectedBlocks.length - 1}__`;
-        });
-
-        // Keep single-tilde pairs literal (~text~) while preserving ~~text~~ strikethrough.
-        value = value.replace(/(^|[^~\\])~(?=[^\s~])([^\n]*?[^\s~])~(?!~)/gm, '$1\\~$2\\~');
-
-        // Apply robust bold: **text**
         value = value.replace(/\*\*([^\*\s](?:[\s\S]*?[^\*\s])?)\*\*/g, '<strong>$1</strong>');
-        // Apply robust italic: *text* (avoid matching across newlines or nested stars)
         value = value.replace(/([^\*]|^)\*([^\*\s](?:[^\*\n]*?[^\*\s])?)\*([^\*]|$)/g, '$1<em>$2</em>$3');
+        value = value.replace(/\x00P(\d+)\x00/g, (_, i) => prot[+i]);
 
-        // Restore protected blocks
-        value = value.replace(/__CJK_PROT_(\d+)__/g, (_, i) => protectedBlocks[i]);
-
-        // Render Markdown to HTML for the preview
+        // 4. Render markdown
         preview.innerHTML = marked.parse(value);
 
-        // Let LatexTable.js parse and render the <pre class="latex-table-code"> blocks
-        if (typeof LaTeXTable !== 'undefined') {
-            LaTeXTable.renderAll();
-        }
+        // 5. Render LaTeX tables
+        if (typeof LaTeXTable !== 'undefined') LaTeXTable.renderAll();
 
-        hydrateSvgImages();
+        // 6. Hydrate local SVG images
+        hydrateSvg();
 
-        // Apply syntax highlighting
-        if (typeof hljs !== 'undefined') {
-            preview.querySelectorAll('pre code').forEach((block) => {
-                hljs.highlightElement(block);
-            });
-        }
+        // 7. Syntax highlighting
+        if (typeof hljs !== 'undefined')
+            preview.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
 
-        // Update Stats
-        const text = value.trim();
-        wordCount.textContent = text ? text.split(/\s+/).length : 0;
-        charCount.textContent = value.length;
-
-        // Visual feedback
+        const txt = input.value.trim();
+        wordCount.textContent = txt ? txt.split(/\s+/).length : 0;
+        charCount.textContent = input.value.length;
         status.textContent = 'Ready for Keep';
         status.style.opacity = '1';
-
-        setTimeout(() => {
-            status.style.opacity = '0.7';
-        }, 1000);
+        setTimeout(() => { status.style.opacity = '0.7'; }, 1000);
     };
 
-    const setStatus = (message) => {
-        status.textContent = message;
-        status.style.opacity = '1';
-    };
+    const setStatus = msg => { status.textContent = msg; status.style.opacity = '1'; };
 
-    const readFileAsText = (file) => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsText(file, 'utf-8');
+    const readFile = f => new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result); r.onerror = () => rej(r.error);
+        r.readAsText(f, 'utf-8');
     });
 
-    const isSvgFile = (file) => {
-        const name = (file.name || '').toLowerCase();
-        return file.type === 'image/svg+xml' || name.endsWith('.svg');
-    };
+    const isSvgFile = f => f.type === 'image/svg+xml' || (f.name||'').toLowerCase().endsWith('.svg');
 
-    const renderSvgPreview = (svgContent) => {
-        preview.innerHTML = svgContent;
-        const text = svgContent.trim();
-        wordCount.textContent = text ? text.split(/\s+/).length : 0;
-        charCount.textContent = svgContent.length;
-    };
-
-    const saveMarkdownFile = async () => {
+    const saveFile = async () => {
         const content = input.value;
-        const defaultName = currentFileName.endsWith('.md') ? currentFileName : `${currentFileName}.md`;
-
+        const name = currentFileName.endsWith('.md') ? currentFileName : `${currentFileName}.md`;
         try {
             if ('showSaveFilePicker' in window) {
-                const handle = await window.showSaveFilePicker({
-                    suggestedName: defaultName,
-                    types: [{
-                        description: 'Markdown Files',
-                        accept: {
-                            'text/markdown': ['.md'],
-                            'text/plain': ['.md']
-                        }
-                    }]
-                });
-                const writable = await handle.createWritable();
-                await writable.write(content);
-                await writable.close();
-
-                currentFileName = handle.name || defaultName;
-                setStatus(`Saved: ${currentFileName}`);
-                return;
+                const h = await window.showSaveFilePicker({ suggestedName: name,
+                    types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }] });
+                const w = await h.createWritable();
+                await w.write(content); await w.close();
+                currentFileName = h.name || name; setStatus(`Saved: ${currentFileName}`); return;
             }
-
-            const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = defaultName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            setStatus(`Saved: ${defaultName}`);
-        } catch (error) {
-            if (error && error.name === 'AbortError') {
-                setStatus('Save canceled');
-                return;
-            }
-            console.error('File save error:', error);
-            setStatus('Failed to save file');
+            const a = Object.assign(document.createElement('a'), {
+                href: URL.createObjectURL(new Blob([content], { type: 'text/markdown;charset=utf-8' })),
+                download: name
+            });
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setStatus(`Saved: ${name}`);
+        } catch (e) {
+            if (e?.name === 'AbortError') { setStatus('Save canceled'); return; }
+            setStatus('Failed to save');
         }
     };
 
-    // Initial render
+    const copyTo = btn => {
+        navigator.clipboard.write([new ClipboardItem({
+            'text/html' : new Blob([preview.innerHTML],  { type: 'text/html' }),
+            'text/plain': new Blob([preview.innerText],  { type: 'text/plain' })
+        })]).then(() => {
+            const o = btn.innerHTML, ob = btn.style.background;
+            btn.innerHTML = '<span>Copied!</span>'; btn.style.background = '#10b981';
+            setTimeout(() => { btn.innerHTML = o; btn.style.background = ob; }, 2000);
+        }).catch(() => navigator.clipboard.writeText(preview.innerText));
+    };
+
     updatePreview();
-
-    // Event Listeners
-    input.addEventListener('input', () => {
-        status.textContent = 'Formatting...';
-        updatePreview();
+    input.addEventListener('input', () => { status.textContent = 'Formatting...'; updatePreview(); });
+    openBtn?.addEventListener('click', () => fileInput.click());
+    fileInput?.addEventListener('change', async e => {
+        const [f] = e.target.files || []; if (!f) return;
+        try {
+            const txt = await readFile(f);
+            input.value = txt; currentFileName = f.name || 'untitled.md';
+            currentFileType = isSvgFile(f) ? 'svg' : 'markdown';
+            updatePreview(); setStatus(`Loaded: ${currentFileName}`);
+        } catch { setStatus('Failed to load'); } finally { fileInput.value = ''; }
     });
-
-    if (openBtn && fileInput) {
-        openBtn.addEventListener('click', () => fileInput.click());
-    }
-
-    if (fileInput) {
-        fileInput.addEventListener('change', async (e) => {
-            const [file] = e.target.files || [];
-            if (!file) return;
-
-            try {
-                const text = await readFileAsText(file);
-                input.value = text;
-                currentFileName = file.name || 'untitled.md';
-                currentFileType = isSvgFile(file) ? 'svg' : 'markdown';
-
-                if (currentFileType === 'svg') {
-                    renderSvgPreview(text);
-                } else {
-                    updatePreview();
-                }
-
-                setStatus(`Loaded: ${currentFileName}`);
-            } catch (error) {
-                console.error('File read error:', error);
-                setStatus('Failed to load file');
-            } finally {
-                fileInput.value = '';
-            }
-        });
-    }
-
-    if (saveBtn) {
-        saveBtn.addEventListener('click', saveMarkdownFile);
-    }
-
-    document.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-            e.preventDefault();
-            saveMarkdownFile();
-        }
+    saveBtn?.addEventListener('click', saveFile);
+    document.addEventListener('keydown', e => {
+        if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s') { e.preventDefault(); saveFile(); }
     });
-
-    /**
-     * Copy as Rich Text (HTML) helper
-     */
-    const copyToKeep = (btn) => {
-        const html = preview.innerHTML;
-        const plainText = preview.innerText;
-
-        const blobHtml = new Blob([html], { type: 'text/html' });
-        const blobText = new Blob([plainText], { type: 'text/plain' });
-        const data = [new ClipboardItem({
-            'text/html': blobHtml,
-            'text/plain': blobText
-        })];
-
-        navigator.clipboard.write(data).then(() => {
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<span>Copied!</span>';
-            const originalBg = btn.style.background;
-            btn.style.background = '#10b981';
-
-            setTimeout(() => {
-                btn.innerHTML = originalText;
-                btn.style.background = originalBg;
-            }, 2000);
-        }).catch(err => {
-            console.error('Clipboard error:', err);
-            navigator.clipboard.writeText(plainText);
-        });
-    };
-
-    // Header copy button
-    copyBtn.addEventListener('click', () => copyToKeep(copyBtn));
-
-    // Bottom floating copy button
-    const copyAllBtn = document.getElementById('copy-all-btn');
-    if (copyAllBtn) {
-        copyAllBtn.addEventListener('click', () => copyToKeep(copyAllBtn));
-    }
-
-    // Sync scrolling
+    copyBtn.addEventListener('click', () => copyTo(copyBtn));
+    document.getElementById('copy-all-btn')?.addEventListener('click', e => copyTo(e.currentTarget));
     input.addEventListener('scroll', () => {
-        const percentage = input.scrollTop / (input.scrollHeight - input.clientHeight);
-        preview.scrollTop = percentage * (preview.scrollHeight - preview.clientHeight);
+        const p = input.scrollTop / (input.scrollHeight - input.clientHeight);
+        preview.scrollTop = p * (preview.scrollHeight - preview.clientHeight);
     });
-
-    // Auto-numbering and list continuation (Editor feature)
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            const start = input.selectionStart;
-            const text = input.value;
-            const beforeCursor = text.substring(0, start);
-            const lineStart = beforeCursor.lastIndexOf('\n') + 1;
-            const currentLine = beforeCursor.substring(lineStart);
-
-            const bulletRegex = /^(\s*[*+-]\s+)(.*)$/;
-            const numberedRegex = /^(\s*)(\d+)(\.\s+)(.*)$/;
-
-            let match;
-            if ((match = currentLine.match(bulletRegex))) {
-                const marker = match[1];
-                const content = match[2];
-                if (content.trim() === '') {
-                    e.preventDefault();
-                    input.value = text.substring(0, lineStart) + text.substring(start);
-                    input.selectionStart = input.selectionEnd = lineStart;
-                } else {
-                    e.preventDefault();
-                    const insertion = '\n' + marker;
-                    input.value = text.substring(0, start) + insertion + text.substring(start);
-                    input.selectionStart = input.selectionEnd = start + insertion.length;
-                }
-                updatePreview();
-            } else if ((match = currentLine.match(numberedRegex))) {
-                const indent = match[1];
-                const number = parseInt(match[2]);
-                const separator = match[3];
-                const content = match[4];
-                if (content.trim() === '') {
-                    e.preventDefault();
-                    input.value = text.substring(0, lineStart) + text.substring(start);
-                    input.selectionStart = input.selectionEnd = lineStart;
-                } else {
-                    e.preventDefault();
-                    const insertion = `\n${indent}${number + 1}${separator}`;
-                    input.value = text.substring(0, start) + insertion + text.substring(start);
-                    input.selectionStart = input.selectionEnd = start + insertion.length;
-                }
-                updatePreview();
-            }
+    input.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        const s = input.selectionStart, v = input.value;
+        const line = v.slice(v.lastIndexOf('\n', s - 1) + 1, s);
+        let m;
+        if ((m = line.match(/^(\s*[*+-]\s+)(.*)/))) {
+            e.preventDefault();
+            const ins = m[2].trim() === '' ? '' : '\n' + m[1];
+            if (!ins) { input.value = v.slice(0, s - m[1].length) + v.slice(s); input.selectionStart = input.selectionEnd = s - m[1].length; }
+            else { input.value = v.slice(0, s) + ins + v.slice(s); input.selectionStart = input.selectionEnd = s + ins.length; }
+            updatePreview();
+        } else if ((m = line.match(/^(\s*)(\d+)(\.\s+)(.*)/))) {
+            e.preventDefault();
+            const ins = m[4].trim() === '' ? '' : `\n${m[1]}${+m[2]+1}${m[3]}`;
+            if (!ins) { input.value = v.slice(0, s - line.length) + v.slice(s); input.selectionStart = input.selectionEnd = s - line.length; }
+            else { input.value = v.slice(0, s) + ins + v.slice(s); input.selectionStart = input.selectionEnd = s + ins.length; }
+            updatePreview();
         }
     });
 });
