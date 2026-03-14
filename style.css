@@ -18,7 +18,11 @@
 }
 
 body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family:
+        "Inter",
+        system-ui,
+        -apple-system,
+        sans-serif;
     background-color: var(--bg-color);
     color: var(--text-primary);
     height: 100vh;
@@ -98,7 +102,7 @@ button:active {
 }
 
 .status-indicator::before {
-    content: '';
+    content: "";
     width: 8px;
     height: 8px;
     background: #10b981;
@@ -150,6 +154,23 @@ section:focus-within {
     border-radius: 4px;
 }
 
+#clear-btn,
+#copy-btn {
+    padding: 0.2rem 0.6rem;
+    font-size: 0.7rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    box-shadow: none;
+}
+#clear-btn:hover,
+#copy-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    box-shadow: none;
+    transform: none;
+}
+
 /* Textarea / Editor */
 textarea {
     flex: 1;
@@ -158,12 +179,11 @@ textarea {
     outline: none;
     color: var(--text-primary);
     padding: 1.5rem;
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
     font-size: 0.95rem;
     line-height: 1.6;
     resize: none;
 }
-
 
 /* Preview Area */
 .preview-pane {
@@ -215,7 +235,7 @@ textarea {
 /* Markdown Styling for Keep (Clean & Simple) */
 .markdown-body {
     font-size: 1.05rem;
-    font-family: 'Inter', sans-serif;
+    font-family: "Inter", sans-serif;
 }
 
 .markdown-body p {
@@ -258,7 +278,7 @@ textarea {
     background: #f1f3f4;
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: "JetBrains Mono", monospace;
     font-size: 0.85em;
     color: #d93025;
 }
@@ -269,7 +289,7 @@ textarea {
     border-radius: 8px;
     overflow-x: auto;
     margin: 1rem 0;
-    border: 1px solid #dadce0;
+    border: 1px solid #333;
 }
 
 .markdown-body blockquote {
@@ -290,18 +310,39 @@ textarea {
 
 .markdown-body th,
 .markdown-body td {
-    border: 1px solid #dadce0;
+    border: 1px solid #333;
     padding: 10px 15px;
     text-align: center;
 }
 
 .markdown-body th {
     background-color: #f8f9fa;
+    border: 1px solid #333;
     font-weight: 600;
 }
 
 .markdown-body tr:nth-child(even) {
     background-color: #fafafa;
+}
+
+/* 표에 대각선을 긋는 코드, 여기서는 th 태그의 id = diag 셀에 대각선을 긋는다. */
+table:nth-of-type(1) th#diag {
+    /* 첫번째 표에 대각선을 긋는다. */
+    background-image: linear-gradient(
+        to top right,
+        white 49%,
+        black,
+        white 51%
+    );
+}
+table:nth-of-type(2) th#diag {
+    /* 두번째 표에 대각선을 긋는다. */
+    background-image: linear-gradient(
+        to top right,
+        white 49%,
+        black,
+        white 51%
+    );
 }
 
 /* LaTeX SVG (via latex.js / upmath.me) */
@@ -357,6 +398,19 @@ footer {
 }
 
 @media (max-width: 768px) {
+    header {
+        height: auto;
+        padding: 10px 1rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .actions {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        width: 100%;
+        justify-content: flex-start;
+    }
     main {
         flex-direction: column;
     }

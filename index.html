@@ -24,39 +24,22 @@
     <script src="script.js"></script>
 
 
-    <style>
-        /* 표 주변의 여백이나 그림자 등 추가 디자인 (선택 사항) */
-        .latex-table-container {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-    </style>
+
 </head>
 
 <body>
     <div class="app-container">
         <header>
             <div class="logo">
-                <span class="gradient-text">Nova</span> Markdown
+                <span class="gradient-text">Markdown</span> Editor
             </div>
             <div class="actions">
-                <button id="open-btn" class="secondary-btn" title="파일 불러오기">
-                    파일 불러오기
+                <button id="open-btn" class="secondary-btn" title="불러오기">
+                    불러오기
                 </button>
-                <button id="save-btn" title="파일 저장하기">
-                    파일 저장하기
+                <button id="save-btn" title="저장하기">
+                    저장하기
                 </button>
-                <button id="copy-btn" title="Copy for Google Keep (Preserves Bold, Headings)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                    </svg>
-                    Copy for Keep
-                </button>
-                <div class="status-indicator" id="status">Syncing...</div>
             </div>
         </header>
         <input type="file" id="file-input" accept=".md,.svg,text/markdown,text/plain,image/svg+xml" hidden>
@@ -65,18 +48,35 @@
             <section class="editor-pane">
                 <div class="pane-header">
                     <span>Editor</span>
-                    <span class="language">Markdown</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button id="copy-btn" title="복사">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            복사
+                        </button>
+                        <button id="clear-btn" title="내용 지우기">지우기</button>
+                    </div>
                 </div>
                 <textarea id="markdown-input" placeholder="Type your markdown here..." spellcheck="false">
-# Hello World
+# 신기능 마크다운 편집기
 
+## 특징
+- 마크다운 문법에서 한글 편집시 단어의 굵게 표시 명령(**)바로 뒤에 문자가 **공백**없이 붙을 경우 발생하는 **"오류"**를 해결
+- svg 형식 이미지 렌더링
+- latex 수식 지원
+- latex 이미지 그리기
+- latex 표 만들기
+- html 문법 지원
+
+## 예
 This is a **Premium** Markdown Editor.
+사과가 3~4개 있습니다.
+사과가 **3~4개** 있습니다.
 
-## Features
-- Real-time preview
-- Syntax highlighting
-- Glassmorphism effect
-- LaTeX support ( $E = mc^2$ )
 <br>
 
 **니콜라스 마두로(Nicolás Maduro)** 정권은 미국과 대립 중이었고, 미국은 마두로를 불법적인 독재자로 규정하면서 제재와 외교적 압박을 가하고 있었습니다. 2019년에는 미국과 여러 서방국가가 **후안 과이도(Juan Guaidó)**를 베네수엘라의 합법적 대통령으로 인정하면서 권력 충돌이 이어지고 있었죠.
@@ -127,10 +127,34 @@ function greet() {
 <br>
 
 #### 용의자의 딜레마
-| 갑/을 | 협조 | 배신 |
+| 갑$ \backslash $을 | 협조 | 배신 |
 |---|---|---|
 | **협조** | -1,-1 | -9,0 |
 | **배신** | 0,-9 | -5,-5 |
+
+
+<br>
+<table >
+  <caption>표 1. 죄인들의 딜렘마</caption>
+  <tr >
+    <th id = "diag"> 갑 &nbsp; &nbsp;을 </th>
+    <th > C </th>
+    <th > D </th>
+  </tr>
+  <tr >
+    <th > C </th>
+    <td > -1,-1 </td>
+    <td > -9, 0 </td>
+  </tr>
+  <tr >
+    <th > D </th>
+    <td >  0, -9 </td>
+    <td > -5, -5 </td>
+  </tr>
+
+</table>
+
+<br>
 
 <h2>여행 상품 가격표</h2>
 
@@ -145,10 +169,7 @@ function greet() {
             </section>
 
             <section class="preview-pane">
-                <div class="pane-header">
-                    <span>Rich Text Preview</span>
-                    <span class="language">Google Keep Style</span>
-                </div>
+
                 <div id="keep-preview" class="markdown-body"></div>
                 <div class="pane-action-bar">
                     <button id="copy-all-btn" class="secondary-btn">

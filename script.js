@@ -4,8 +4,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyBtn  = document.getElementById('copy-btn');
     const openBtn  = document.getElementById('open-btn');
     const saveBtn  = document.getElementById('save-btn');
+    const clearBtn = document.getElementById('clear-btn');
     const fileInput= document.getElementById('file-input');
-    const status   = document.getElementById('status');
+
     const wordCount= document.getElementById('word-count');
     const charCount= document.getElementById('char-count');
     let currentFileName = 'untitled.md';
@@ -13,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const UPMATH = 'https://i.upmath.me/svg/';
 
-    marked.setOptions({ breaks: true, gfm: true });
+    marked.setOptions({ breaks: true, gfm: true, silent: true });
 
     const escapeHtml = v => String(v ?? '')
         .replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -104,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const updatePreview = () => {
         if (currentFileType === 'svg') {
             preview.innerHTML = input.value;
-            setStatus('Ready for Keep'); return;
+            return;
         }
 
         let value = input.value;
@@ -123,8 +124,8 @@ document.addEventListener('DOMContentLoaded', () => {
         value = value.replace(/(```[\s\S]*?```|`[^`\n]+`|<[^>]+>)/g, m => {
             prot.push(m); return `\x00P${prot.length - 1}\x00`;
         });
-        value = value.replace(/\*\*([^\*\s](?:[\s\S]*?[^\*\s])?)\*\*/g, '<strong>$1</strong>');
-        value = value.replace(/([^\*]|^)\*([^\*\s](?:[^\*\n]*?[^\*\s])?)\*([^\*]|$)/g, '$1<em>$2</em>$3');
+        value = value.replace(/\*\*([^\*\s](?:[^\*\n]*?[^\*\s])?)\*\*/g, (_, m) => `<strong>${m.replace(/~/g, '&#126;')}</strong>`);
+        value = value.replace(/([^\*]|^)\*([^\*\s](?:[^\*\n]*?[^\*\s])?)\*([^\*]|$)/g, (_, p, m, s) => `${p}<em>${m.replace(/~/g, '&#126;')}</em>${s}`);
         value = value.replace(/\x00P(\d+)\x00/g, (_, i) => prot[+i]);
 
         // 4. Render markdown
@@ -143,12 +144,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const txt = input.value.trim();
         wordCount.textContent = txt ? txt.split(/\s+/).length : 0;
         charCount.textContent = input.value.length;
-        status.textContent = 'Ready for Keep';
-        status.style.opacity = '1';
-        setTimeout(() => { status.style.opacity = '0.7'; }, 1000);
+        setTimeout(() => { }, 1000);
     };
 
-    const setStatus = msg => { status.textContent = msg; status.style.opacity = '1'; };
+
 
     const readFile = f => new Promise((res, rej) => {
         const r = new FileReader();
@@ -167,17 +166,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }] });
                 const w = await h.createWritable();
                 await w.write(content); await w.close();
-                currentFileName = h.name || name; setStatus(`Saved: ${currentFileName}`); return;
+                currentFileName = h.name || name; return;
             }
             const a = Object.assign(document.createElement('a'), {
                 href: URL.createObjectURL(new Blob([content], { type: 'text/markdown;charset=utf-8' })),
                 download: name
             });
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            setStatus(`Saved: ${name}`);
+
         } catch (e) {
-            if (e?.name === 'AbortError') { setStatus('Save canceled'); return; }
-            setStatus('Failed to save');
+            if (e?.name === 'AbortError') { return; }
+
         }
     };
 
@@ -193,7 +192,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     updatePreview();
-    input.addEventListener('input', () => { status.textContent = 'Formatting...'; updatePreview(); });
+    input.addEventListener('input', () => { updatePreview(); });
+    clearBtn?.addEventListener('click', () => {
+        if (confirm('모든 내용을 지우시겠습니까?')) {
+            input.value = '';
+            updatePreview();
+        }
+    });
     openBtn?.addEventListener('click', () => fileInput.click());
     fileInput?.addEventListener('change', async e => {
         const [f] = e.target.files || []; if (!f) return;
@@ -201,8 +206,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const txt = await readFile(f);
             input.value = txt; currentFileName = f.name || 'untitled.md';
             currentFileType = isSvgFile(f) ? 'svg' : 'markdown';
-            updatePreview(); setStatus(`Loaded: ${currentFileName}`);
-        } catch { setStatus('Failed to load'); } finally { fileInput.value = ''; }
+            updatePreview();
+        } catch { } finally { fileInput.value = ''; }
     });
     saveBtn?.addEventListener('click', saveFile);
     document.addEventListener('keydown', e => {
