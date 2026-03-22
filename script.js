@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
             : img;
     }
 
-    /* Pre-process markdown: replace $$...$$ and $...$ with <img> BEFORE marked */
+    /* Pre-process markdown: replace math delimiters with <img> BEFORE marked */
     function processMath(value) {
         // Protect code blocks and tabular <pre> from math substitution
         const codePh = [];
@@ -58,26 +58,30 @@ document.addEventListener('DOMContentLoaded', () => {
             codePh.push(m); return `\x00C${codePh.length - 1}\x00`;
         });
 
-        // Normalize single $...$ → $$...$$ (protect existing $$ first)
-        const dblPh = [];
-        value = value.replace(/\$\$[\s\S]*?\$\$/g, m => {
-            dblPh.push(m); return `\x00D${dblPh.length - 1}\x00`;
-        });
-        value = value.replace(/(?<!\$)\$(?!\$)([^\n$]+?)\$(?!\$)/g, (_, f) => `$$${f}$$`);
-        value = value.replace(/\x00D(\d+)\x00/g, (_, i) => dblPh[+i]);
+        const mathPh = [];
+        const addMath = (formula, isBlock) => {
+            mathPh.push({ formula, isBlock });
+            return `\x01M${mathPh.length - 1}\x01`;
+        };
 
-        // Split by $$...$$ to determine block vs inline from context
-        const parts = value.split(/(\$\$[\s\S]*?\$\$)/g);
-        value = parts.map((part, i) => {
-            if (i % 2 === 0) return part;           // plain text
-            const formula = part.slice(2, -2);
-            const prev = parts[i - 1] || '';
-            const next = parts[i + 1] || '';
-            const prevLine = prev.split('\n').pop();   // text on same line before $$
-            const nextLine = (next.split('\n')[0]) || ''; // text on same line after $$
-            const isBlock  = /^\s*$/.test(prevLine) && /^\s*$/.test(nextLine);
-            return mathImg(formula, isBlock);
-        }).join('');
+        // 1. Explicit Block: \[ ... \]
+        value = value.replace(/\\\[([\s\S]*?)\\\]/g, (_, f) => addMath(f, true));
+
+        // 2. Explicit Inline: \( ... \) or \ ( ... \)
+        value = value.replace(/\\\(([\s\S]*?)\\\)/g, (_, f) => addMath(f, false));
+        value = value.replace(/\\\s\(([\s\S]*?)\\\)/g, (_, f) => addMath(f, false));
+
+        // 3. Standard Block: $$ ... $$
+        value = value.replace(/\$\$([\s\S]*?)\$\$/g, (_, f) => addMath(f, true));
+
+        // 4. Standard Inline: $ ... $
+        value = value.replace(/(?<!\$)\$(?!\$)([^\n$]+?)\$(?!\$)/g, (_, f) => addMath(f, false));
+
+        // Replace math markers with images
+        value = value.replace(/\x01M(\d+)\x01/g, (_, i) => {
+            const m = mathPh[+i];
+            return mathImg(m.formula, m.isBlock);
+        });
 
         // Restore code/pre blocks
         value = value.replace(/\x00C(\d+)\x00/g, (_, i) => codePh[+i]);
