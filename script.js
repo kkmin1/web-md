@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 1. Wrap \begin{tabular} for LatexTable.js
         value = value.replace(
-            /(?:\(단위\s?:\s?.+?\)\s*)?(?:\\arrayrulecolor\{.*\}\s*)?\\begin\{tabular\}[\s\S]*?\\end\{tabular\}/g,
+            /(?:\(단위\s?:\s?.+?\)\s*)?(?:\\arrayrulecolor\s*\{.*?\}\s*)?\\begin\s*\{tabular\}[\s\S]*?\\end\s*\{tabular\}/g,
             m => `<pre class="latex-table-code">\n${m}\n</pre>`
         );
 
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 3. CJK bold/italic fix (math is now <img>, protect HTML and code)
         const prot = [];
-        value = value.replace(/(```[\s\S]*?```|`[^`\n]+`|<[^>]+>)/g, m => {
+        value = value.replace(/(```[\s\S]*?```|`[^`\n]+`|<pre[\s\S]*?<\/pre>|<[^>]+>)/g, m => {
             prot.push(m); return `\x00P${prot.length - 1}\x00`;
         });
         value = value.replace(/\*\*([^\*\s](?:[^\*\n]*?[^\*\s])?)\*\*/g, (_, m) => `<strong>${m.replace(/~/g, '&#126;')}</strong>`);

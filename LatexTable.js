@@ -10,20 +10,10 @@ const LaTeXTable = {
             rawCode = rawCode.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 
             // Only process elements that actually contain a tabular environment
-            if (!/\\?begin\{tabular\}/i.test(rawCode)) return;
+            if (!/\\?begin\s*\{tabular\}/i.test(rawCode)) return;
 
             const rendered = this.parse(rawCode);
-
-            // If the source element is explicitly the code block (e.g. <pre class="latex-table-code">),
-            // replace its innerHTML. For generic <p>, insert the rendered table after it and remove the <p>.
-            const tag = el.tagName ? el.tagName.toLowerCase() : '';
-            if (el.classList && el.classList.contains('latex-table-code')) {
-                el.innerHTML = rendered;
-                el.style.display = 'block';
-            } else if (tag === 'pre') {
-                el.innerHTML = rendered;
-                el.style.display = 'block';
-            } else {
+            if (rendered !== "Format Error") {
                 el.insertAdjacentHTML('afterend', rendered);
                 el.remove();
             }
@@ -35,12 +25,12 @@ const LaTeXTable = {
         let unitHtml = unitMatch ? `<div class="lt-external-unit">${unitMatch[0]}</div>` : '';
         let cleanCode = code.replace(/\(단위\s?:\s?.+?\)/g, '').trim();
 
-        const bodyMatch = cleanCode.match(/\\?begin{tabular}{(.+?)}([\s\S]+?)\\?end{tabular}/);
+        const bodyMatch = cleanCode.match(/\\?begin\s*\{tabular\}\s*\{(.+?)\}([\s\S]+?)\\?end\s*\{tabular\}/);
         if (!bodyMatch) return "Format Error";
 
         // \arrayrulecolor{color} 감지 (백슬래시가 제거된 경우도 허용)
         let lineColor = "#000";
-        const colorMatch = cleanCode.match(/\\?arrayrulecolor{(.+?)}/);
+        const colorMatch = cleanCode.match(/\\?arrayrulecolor\s*\{(.+?)\}/);
         if (colorMatch) {
             lineColor = colorMatch[1].trim();
         }
@@ -66,7 +56,7 @@ const LaTeXTable = {
                 raw = this.applyFontStyles(raw);
 
                 if (/\\?diagbox/.test(raw)) {
-                    const match = raw.match(/\\?diagbox{(.+?)}{(.+?)}/);
+                    const match = raw.match(/\\?diagbox\s*\{(.+?)\}\s*\{(.+?)\}/);
                     if (match) {
                         rowObj.cells.push({ isDiag: true, top: this.applyFontStyles(match[2]), bottom: this.applyFontStyles(match[1]), className: className });
                         return;
@@ -164,9 +154,9 @@ const LaTeXTable = {
     },
 
     applyFontStyles: function (str) {
-        str = str.replace(/\\?textbf{(.+?)}/g, '<strong style="font-weight: 900 !important; color: #000;">$1</strong>');
-        str = str.replace(/\\?color{(.+?)}{(.+?)}/g, '<span style="color:$1 !important;">$2</span>');
-        str = str.replace(/\\?fontsize{(.+?)}{(.+?)}/g, '<span style="font-size:$1px !important; line-height: 1;">$2</span>');
+        str = str.replace(/\\?textbf\s*\{(.+?)\}/g, '<strong style="font-weight: 900 !important; color: #000;">$1</strong>');
+        str = str.replace(/\\?color\s*\{(.+?)\}\s*\{(.+?)\}/g, '<span style="color:$1 !important;">$2</span>');
+        str = str.replace(/\\?fontsize\s*\{(.+?)\}\s*\{(.+?)\}/g, '<span style="font-size:$1px !important; line-height: 1;">$2</span>');
         return str;
     }
 };
@@ -218,6 +208,6 @@ ltStyle.innerHTML = `
     .lt-diag-top { top: 8px; right: 10px; }
     .lt-diag-bottom { bottom: 8px; left: 10px; }
     .latex-table-code { display: none; }
-\`;
+`;
 document.head.appendChild(ltStyle);
 window.addEventListener('load', () => setTimeout(() => LaTeXTable.renderAll(), 80));
