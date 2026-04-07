@@ -130,6 +130,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         value = value.replace(/\*\*([^\*\s](?:[^\*\n]*?[^\*\s])?)\*\*/g, (_, m) => `<strong>${m.replace(/~/g, '&#126;')}</strong>`);
         value = value.replace(/([^\*]|^)\*([^\*\s](?:[^\*\n]*?[^\*\s])?)\*([^\*]|$)/g, (_, p, m, s) => `${p}<em>${m.replace(/~/g, '&#126;')}</em>${s}`);
+
+        // Prevent single tilde from being parsed as strikethrough (e.g. 1~2, 2~3)
+        value = value.replace(/(?<!~)~(?!~)/g, '&#126;');
+
         value = value.replace(/\x00P(\d+)\x00/g, (_, i) => prot[+i]);
 
         // 4. Render markdown

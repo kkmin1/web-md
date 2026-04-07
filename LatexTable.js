@@ -218,7 +218,6 @@ ltStyle.innerHTML = `
     .lt-diag-top { top: 8px; right: 10px; }
     .lt-diag-bottom { bottom: 8px; left: 10px; }
     .latex-table-code { display: none; }
-`;
+\`;
 document.head.appendChild(ltStyle);
-// Run after full load with a tiny delay to avoid clobbering other LaTeX/math renderers
 window.addEventListener('load', () => setTimeout(() => LaTeXTable.renderAll(), 80));

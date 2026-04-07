@@ -11,8 +11,10 @@ This is a **Premium** Markdown Editor.
 
 ## LaTeX 수식 Example
 Inline math: $f(x) = \int_{-\infty}^\infty \hat{f}(\xi) e^{2\pi i \xi x} d\xi$
+Inline math: \(f(x) = \int_{-\infty}^\infty \hat{f}(\xi) e^{2\pi i \xi x} d\xi \)
 <br>
 Block math: $$f(x) = \int_{-\infty}^\infty \hat{f}(\xi) e^{2\pi i \xi x} d\xi$$
+Block math: \[ f(x) = \int_{-\infty}^\infty \hat{f}(\xi) e^{2\pi i \xi x} d\xi \]
 
 행렬:
 
