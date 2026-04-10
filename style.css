@@ -345,7 +345,7 @@ table:nth-of-type(2) th#diag {
     );
 }
 
-/* LaTeX SVG (via latex.js / upmath.me) */
+/* LaTeX SVG (via upmath.me) */
 .latex-svg {
     vertical-align: middle;
     max-width: 100%;

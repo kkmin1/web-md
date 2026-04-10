@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentFileType = 'markdown';
 
     const UPMATH = 'https://i.upmath.me/svg/';
+    const LATEX_BLOCK_ENV_PATTERN = /\\begin\{(tikzpicture|bmatrix|Bmatrix|pmatrix|vmatrix|Vmatrix|matrix|cases|aligned|align\*?|equation\*?|gather\*?|multline\*?)\}[\s\S]*?\\end\{\1\}/g;
+    const latexMetricCache = {};
 
     marked.setOptions({ breaks: true, gfm: true, silent: true });
 
@@ -43,18 +45,59 @@ document.addEventListener('DOMContentLoaded', () => {
         // Inline math: wrap with \textstyle so upmath renders at text size
         const tex = block ? formula : `{\\textstyle ${formula}}`;
         const url = UPMATH + encodeURIComponent(tex);
-        const alt = formula.replace(/"/g, '&quot;').replace(/</g, '&lt;');
-        const img = `<img src="${url}" alt="${alt}" class="latex-svg" style="vertical-align:middle;max-width:100%;">`;
+        const alt = escapeHtml(formula);
+        const img = `<img src="${url}" alt="${alt}" class="latex-svg" data-latex-source="${alt}" data-latex-display="${block ? 'block' : 'inline'}" style="vertical-align:middle;max-width:100%;opacity:0;">`;
         return block
             ? `<div style="text-align:center;margin:1.2em 0">${img}</div>`
             : img;
+    }
+
+    function setLatexMetrics(img, metrics, block) {
+        if (!metrics) return;
+        const { shift, width, height } = metrics;
+        img.style.opacity = '1';
+        img.style.width = `calc(var(--latex-zoom, 1) * ${width}pt)`;
+        img.style.height = `calc(var(--latex-zoom, 1) * ${height}pt)`;
+        img.style.verticalAlign = block ? 'top' : `calc(var(--latex-zoom, 1) * ${-shift}pt)`;
+    }
+
+    async function ensureLatexMetrics(img) {
+        const src = img.getAttribute('src');
+        if (!src) return;
+
+        const block = img.dataset.latexDisplay === 'block';
+        const cached = latexMetricCache[src];
+        if (cached) {
+            setLatexMetrics(img, cached, block);
+            return;
+        }
+
+        try {
+            const resp = await fetch(src);
+            if (!resp.ok) throw new Error('Failed to fetch LaTeX SVG');
+            const text = await resp.text();
+            const match = text.match(/postMessage\((?:&quot;|")([\d|.\-eE]+)(?:&quot;|")/);
+            if (!match || !match[1]) throw new Error('Missing metrics');
+
+            const [shift, width, height] = match[1].split('|');
+            const metrics = { shift, width, height };
+            latexMetricCache[src] = metrics;
+            setLatexMetrics(img, metrics, block);
+        } catch {
+            img.style.opacity = '1';
+        }
+    }
+
+    async function hydrateLatex() {
+        const images = [...preview.querySelectorAll('img.latex-svg')];
+        await Promise.all(images.map(ensureLatexMetrics));
     }
 
     /* Pre-process markdown: replace math delimiters with <img> BEFORE marked */
     function processMath(value) {
         // Protect code blocks and tabular <pre> from math substitution
         const codePh = [];
-        value = value.replace(/(```[\s\S]*?```|`[^`\n]+`|<pre[\s\S]*?<\/pre>)/g, m => {
+        value = value.replace(/(```[\s\S]*?```|`[^`\n]+`|<pre[\s\S]*?<\/pre>|<code[\s\S]*?<\/code>)/g, m => {
             codePh.push(m); return `\x00C${codePh.length - 1}\x00`;
         });
 
@@ -74,8 +117,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // 3. Standard Block: $$ ... $$
         value = value.replace(/\$\$([\s\S]*?)\$\$/g, (_, f) => addMath(f, true));
 
-        // 4. Standard Inline: $ ... $
-        value = value.replace(/(?<!\$)\$(?!\$)([^\n$]+?)\$(?!\$)/g, (_, f) => addMath(f, false));
+        // 4. Common bare LaTeX environments, including TikZ, rendered as block math.
+        value = value.replace(LATEX_BLOCK_ENV_PATTERN, m => addMath(m, true));
+
+        // 5. Standard Inline: $ ... $ (ignore escaped \$)
+        value = value.replace(/(?<![\\$])\$(?!\$)([^\n$]+?)(?<!\\)\$(?!\$)/g, (_, f) => addMath(f, false));
 
         // Replace math markers with images
         value = value.replace(/\x01M(\d+)\x01/g, (_, i) => {
@@ -142,10 +188,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // 5. Render LaTeX tables
         if (typeof LaTeXTable !== 'undefined') LaTeXTable.renderAll();
 
-        // 6. Hydrate local SVG images
+        // 6. Apply the same sizing/baseline adjustment that latex.js provided.
+        hydrateLatex();
+
+        // 7. Hydrate local SVG images
         hydrateSvg();
 
-        // 7. Syntax highlighting
+        // 8. Syntax highlighting
         if (typeof hljs !== 'undefined')
             preview.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
 
