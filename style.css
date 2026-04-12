@@ -243,17 +243,31 @@ textarea {
 }
 
 .markdown-body h1 {
-    font-size: 1.5rem;
-    margin-top: 0.5rem;
-    color: #202124;
-    border: none;
+    font-size: 2.2rem;
+    margin-top: 1.2rem;
+    margin-bottom: 0.8rem;
+    color: #111827;
+    font-weight: 800;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 0.3rem;
 }
 
 .markdown-body h2 {
-    font-size: 1.25rem;
-    margin-top: 0.5rem;
-    color: #202124;
-    border: none;
+    font-size: 1.75rem;
+    margin-top: 1.2rem;
+    margin-bottom: 0.8rem;
+    color: #374151;
+    font-weight: 700;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.3rem;
+}
+
+.markdown-body h3 {
+    font-size: 1.4rem;
+    margin-top: 1rem;
+    margin-bottom: 0.6rem;
+    color: #4b5563;
+    font-weight: 700;
 }
 
 .markdown-body strong {
@@ -345,7 +359,7 @@ table:nth-of-type(2) th#diag {
     );
 }
 
-/* LaTeX SVG (via upmath.me) */
+/* LaTeX SVG (via latex.js / upmath.me) */
 .latex-svg {
     vertical-align: middle;
     max-width: 100%;

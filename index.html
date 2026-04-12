@@ -19,8 +19,9 @@
     <!-- Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="latex.js"></script>
     <script src="LatexTable.js"></script>
-    <script src="script.js?v=3"></script>
+    <script src="script.js?v=4"></script>
 
 
 
@@ -60,118 +61,7 @@
                         <button id="clear-btn" title="내용 지우기">지우기</button>
                     </div>
                 </div>
-                <textarea id="markdown-input" placeholder="Type your markdown here..." spellcheck="false">
-# 신기능 마크다운 편집기
-
-## 특징
-- 마크다운 문법에서 한글 편집시 단어의 굵게 표시 명령(**)바로 뒤에 문자가 **공백**없이 붙을 경우 발생하는 **"오류"**를 해결
-- 범위 표시 "1개 ~ 2개"와 같은 표현에서 ~를 취소선으로 인식하는 오류 해결
-- svg 형식 이미지 렌더링
-- latex 수식 지원
-- latex 이미지 그리기
-- latex 표 만들기
-- html 문법 지원
-
-## 예
-This is a **Premium** Markdown Editor.
-사과가 3~4개 있습니다. 배가 1~2개 있습니다.
-
-<br>
-
-**니콜라스 마두로(Nicolás Maduro)** 정권은 미국과 대립 중이었고, 미국은 마두로를 불법적인 독재자로 규정하면서 제재와 외교적 압박을 가하고 있었습니다. 2019년에는 미국과 여러 서방국가가 **후안 과이도(Juan Guaidó)**를 베네수엘라의 합법적 대통령으로 인정하면서 권력 충돌이 이어지고 있었죠.
-
-나는 <strong>학교</strong>에 간다.
-
-<b>굵게</b>  
-<i>기울임</i>  
-<mark>형광펜 효과</mark>  
-나는 <span style="color:red">빨간 글자</span>를 좋아한다.  
-
-###  링크, 이미지
-구글 홈페이지: https://google.com
-
-![그림1](test.jpg)
-
-![그림2](http://www.gstatic.com/webp/gallery/5.jpg)
-
-![svg](diagram.svg)
-
-
-## LaTeX 수식 Example
-Inline math: $ f(x) = \int_{-\infty}^\infty \hat{f}(\xi) e^{2\pi i \xi x} d\xi $
-<br>
-Inline math: \(f(x) = \int_{-\infty}^\infty \hat{f}(\xi) e^{2\pi i \xi x} d\xi \)
-<br>
-Block integral:
-$$f(x) = \int_{-\infty}^\infty \hat{f}(\xi) e^{2\pi i \xi x} d\xi$$
-<br>
-Block math: \[ f(x) = \int_{-\infty}^\infty \hat{f}(\xi) e^{2\pi i \xi x} d\xi \]
-
-이 행렬의 고유값이 $\alpha$와 $\beta$이며, 대각화를 통해 일반항을 유도할 수 있습니다.
-
-\[
-S = \left\{ (x, y) \in \mathbb{R}^2 \mid x^2 + y^2 \le 25, x \ge 0, y \ge 0 \right\}
-\]
-
-행렬:
-
-$$\begin{bmatrix} a & b \\ c & d \end{bmatrix}$$
-
-$$\begin{pmatrix} a & b \\ c & d \end{pmatrix}$$
-
-$$\begin{vmatrix} a & b \\ c & d \end{vmatrix}$$
-
-$$\begin{cases} -x, & \text{if } x < 0 \\ +x, & \text{if } x \geq 0 \end{cases}$$
-
-
-
-```javascript
-function greet() {
-  console.log("Hello from Nova!");
-}
-```
-<br>
-
-#### 용의자의 딜레마
-| 갑$ \backslash $을 | 협조 | 배신 |
-|---|---|---|
-| **협조** | -1,-1 | -9,0 |
-| **배신** | 0,-9 | -5,-5 |
-
-
-<br>
-<table >
-  <caption>표 1. 죄인들의 딜렘마</caption>
-  <tr >
-    <th id = "diag"> 갑 &nbsp; &nbsp;을 </th>
-    <th > C </th>
-    <th > D </th>
-  </tr>
-  <tr >
-    <th > C </th>
-    <td > -1,-1 </td>
-    <td > -9, 0 </td>
-  </tr>
-  <tr >
-    <th > D </th>
-    <td >  0, -9 </td>
-    <td > -5, -5 </td>
-  </tr>
-
-</table>
-
-<br>
-
-<h2>여행 상품 가격표</h2>
-
-\begin{tabular}{|c|c|c|c|}
-\hline
-\diagbox{가격}{나이} & \textbf{성인} & \textbf{아동(12세 미만)} & \textbf{유아(2세 미만)} \\ \hline \hline
-기본 상품가 & 500,000 & 150,000 & 70,000 \\ \hline
-유류 할증료 & 80,000 & 80,000 & 0 \\ \hline
-\color{red}{총 가격} & 580,000 & 230,000 & 70,000 \\ \hline
-\end{tabular}
-</textarea>
+                <textarea id="markdown-input" placeholder="Type your markdown here..." spellcheck="false"></textarea>
             </section>
 
             <section class="preview-pane">
