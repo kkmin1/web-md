@@ -54,6 +54,12 @@ header {
     color: var(--text-secondary);
 }
 
+.app-version {
+    margin-left: 0.75rem;
+    color: #818cf8;
+    font-size: 0.75rem;
+}
+
 .logo {
     font-size: 1.25rem;
     font-weight: 600;
@@ -154,12 +160,6 @@ section:focus-within {
     color: var(--text-secondary);
 }
 
-.pane-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-}
-
 .language {
     background: rgba(255, 255, 255, 0.05);
     padding: 0.2rem 0.5rem;
@@ -167,8 +167,7 @@ section:focus-within {
 }
 
 #clear-btn,
-#copy-btn,
-.pane-toggle-btn {
+#copy-btn {
     padding: 0.2rem 0.6rem;
     font-size: 0.7rem;
     background: transparent;
@@ -177,18 +176,11 @@ section:focus-within {
     box-shadow: none;
 }
 #clear-btn:hover,
-#copy-btn:hover,
-.pane-toggle-btn:hover {
+#copy-btn:hover {
     background: rgba(255, 255, 255, 0.05);
     color: var(--text-primary);
     box-shadow: none;
     transform: none;
-}
-
-.pane-toggle-btn.is-active {
-    border-color: rgba(99, 102, 241, 0.7);
-    color: #c7d2fe;
-    background: rgba(99, 102, 241, 0.14);
 }
 
 /* Textarea / Editor */
@@ -233,35 +225,6 @@ textarea {
     display: flex;
     justify-content: flex-end;
     z-index: 5;
-}
-
-body.view-mode-editor header,
-body.view-mode-editor .open-hint,
-body.view-mode-editor footer,
-body.view-mode-preview header,
-body.view-mode-preview .open-hint,
-body.view-mode-preview footer {
-    display: none;
-}
-
-body.view-mode-editor main,
-body.view-mode-preview main {
-    padding: 0;
-    gap: 0;
-}
-
-body.view-mode-editor .editor-pane,
-body.view-mode-preview .preview-pane {
-    flex: 1 1 100%;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-}
-
-body.view-mode-editor .preview-pane,
-body.view-mode-preview .editor-pane {
-    display: none;
 }
 
 #copy-all-btn {
@@ -418,10 +381,29 @@ table:nth-of-type(2) th#diag {
     );
 }
 
-/* LaTeX SVG (via latex.js / upmath.me) */
-.latex-svg {
+/* LaTeX SVG (via upmath.me) */
+.markdown-body img.latex-svg {
+    display: inline-block !important;
     vertical-align: middle;
     max-width: 100%;
+    width: auto;
+    height: auto;
+    margin: 0 0.08em !important;
+}
+
+.markdown-body img.latex-inline-svg {
+    display: inline-block !important;
+    margin: 0 0.08em !important;
+}
+
+.markdown-body .latex-block {
+    text-align: center;
+    margin: 1.2em 0;
+}
+
+.markdown-body .latex-block img.latex-block-svg {
+    display: inline-block !important;
+    margin: 0 auto !important;
 }
 
 /* Centered elements */
@@ -486,10 +468,5 @@ footer {
     }
     main {
         flex-direction: column;
-    }
-
-    body.view-mode-editor main,
-    body.view-mode-preview main {
-        flex-direction: row;
     }
 }

@@ -36,7 +36,6 @@
 ## LaTeX 수식 Example
 Inline math: \( f(x) = \int_{-\infty}^\infty \hat{f}(\xi) e^{2\pi i \xi x} d\xi \)
 
--> 달러 화폐와 혼란을 피하기 위해 inline 수식에 '$'를 쓰지 않음.
 <br>
 
 Block integral:
@@ -44,7 +43,7 @@ $$f(x) = \int_{-\infty}^\infty \hat{f}(\xi) e^{2\pi i \xi x} d\xi$$
 <br>
 Block math: \[ f(x) = \int_{-\infty}^\infty \hat{f}(\xi) e^{2\pi i \xi x} d\xi \]
 
-이 행렬의 고유값이 \(\alpha\)와 \(\beta\)이며, 대각화를 통해 일반항을 유도할 수 있습니다.
+이 행렬의 고유값이 $\alpha$와 $\beta$이며, 대각화를 통해 일반항을 유도할 수 있습니다.
 
 \[
 S = \left\{ (x, y) \in \mathbb{R}^2 \mid x^2 + y^2 \le 25, x \ge 0, y \ge 0 \right\}
