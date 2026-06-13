@@ -151,7 +151,7 @@ app.on('window-all-closed', () => {
 
 ipcMain.handle('dialog:open-file', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
-        properties: ['openFile'],
+        properties: ['openFile', 'multiSelections'],
         filters: [
             { name: 'Markdown', extensions: ['md', 'markdown', 'txt'] },
             { name: 'SVG', extensions: ['svg'] },
@@ -160,7 +160,7 @@ ipcMain.handle('dialog:open-file', async () => {
     });
 
     if (result.canceled || !result.filePaths[0]) return null;
-    return readDocument(result.filePaths[0]);
+    return Promise.all(result.filePaths.map(filePath => readDocument(filePath)));
 });
 
 ipcMain.handle('dialog:save-file', async (_event, payload) => {

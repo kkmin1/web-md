@@ -5,13 +5,12 @@ import mimetypes
 import os
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, urlparse
 
 
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("PORT", "8080"))
-APP_DIR = Path(__file__).resolve().parent
-ROOT_DIR = APP_DIR.parent
+ROOT_DIR = Path(__file__).resolve().parent.parent
 
 
 def safe_user_path(raw: str | None) -> Path | None:
@@ -76,7 +75,7 @@ def resolve_asset_path(doc_path: Path, source: str) -> Path | None:
 
 class LocalHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(APP_DIR), **kwargs)
+        super().__init__(*args, directory=str(ROOT_DIR), **kwargs)
 
     def end_headers(self) -> None:
         self.send_header("Cache-Control", "no-store")
@@ -92,9 +91,6 @@ class LocalHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path in {"", "/", "/index.html", "/md-viewer", "/md-viewer/", "/md-viewer/index.html"}:
-            self.path = "/index.html"
-            return super().do_GET()
         if parsed.path == "/api/document":
             self.handle_document(parsed)
             return
@@ -161,10 +157,10 @@ class LocalHandler(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     with ThreadingHTTPServer((HOST, PORT), LocalHandler) as server:
-        viewer = f"http://{HOST}:{PORT}/"
-        example = f"{viewer}?file=/converter/glm.md"
-        print(f"Serving app: {APP_DIR}")
-        print(f"Workspace root: {ROOT_DIR}")
+        viewer = f"http://{HOST}:{PORT}/web-md/index.html"
+        example = f"{viewer}"
+        print(f"Serving {ROOT_DIR}")
         print(f"Viewer:  {viewer}")
+        print(f"Local mode: use 파일 선택 and enter a scratch path like /converter/glm.md")
         print(f"Example: {example}")
         server.serve_forever()

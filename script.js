@@ -3,6 +3,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const preview = document.getElementById('keep-preview');
     const previewPane = document.querySelector('.preview-pane');
     const previewFullscreenBtn = document.getElementById('preview-fullscreen-btn');
+    const tabsBar = document.getElementById('tabs-bar');
+    const currentFileNameEl = document.getElementById('current-file-name');
+    const previewSearchInput = document.getElementById('preview-search-input');
+    const previewSearchCount = document.getElementById('preview-search-count');
+    const previewSearchPrev = document.getElementById('preview-search-prev');
+    const previewSearchNext = document.getElementById('preview-search-next');
     const copyBtn = document.getElementById('copy-btn');
     const openFileBtn = document.getElementById('open-file-btn');
     const openFolderBtn = document.getElementById('open-folder-btn');
@@ -20,6 +26,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let hasDocumentApi = false;
     let currentWorkspaceFiles = new Map();
     const assetObjectUrls = new Map();
+    let openTabs = [];
+    let activeTabId = null;
+    let nextTabId = 1;
+    let currentSearchQuery = '';
+    let currentSearchIndex = -1;
 
     const isDesktop = !!window.desktopApi;
     const UPMATH = 'https://i.upmath.me/svg/';
@@ -90,6 +101,101 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(error);
             alert('링크를 열지 못했습니다.');
         });
+    };
+
+    const getActiveTab = () => openTabs.find(tab => tab.id === activeTabId) || null;
+
+    const syncActiveTabFromEditor = () => {
+        const tab = getActiveTab();
+        if (!tab) return;
+        tab.content = input.value;
+        tab.name = currentFileName;
+        tab.path = currentFilePath;
+        tab.type = currentFileType;
+    };
+
+    const setCurrentDocumentMeta = tab => {
+        currentFileName = tab?.name || 'untitled.md';
+        currentFilePath = tab?.path || null;
+        currentFileType = tab?.type || 'markdown';
+        if (currentFileNameEl) currentFileNameEl.textContent = currentFileName;
+        document.title = `${currentFileName} - Markdown Preview Studio`;
+    };
+
+    const renderTabs = () => {
+        if (!tabsBar) return;
+        tabsBar.innerHTML = '';
+        openTabs.forEach(tab => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `tab-btn${tab.id === activeTabId ? ' active' : ''}`;
+            button.title = tab.path || tab.name;
+            button.dataset.tabId = String(tab.id);
+
+            const title = document.createElement('span');
+            title.className = 'tab-title';
+            title.textContent = tab.name || 'untitled.md';
+            button.appendChild(title);
+
+            const close = document.createElement('span');
+            close.className = 'tab-close';
+            close.textContent = '×';
+            close.title = '탭 닫기';
+            close.setAttribute('aria-hidden', 'true');
+            button.appendChild(close);
+            tabsBar.appendChild(button);
+        });
+    };
+
+    const activateTab = tabId => {
+        const tab = openTabs.find(item => item.id === tabId);
+        if (!tab) return;
+        syncActiveTabFromEditor();
+        activeTabId = tab.id;
+        input.value = tab.content || '';
+        setCurrentDocumentMeta(tab);
+        renderTabs();
+        updatePreview();
+        input.scrollTop = tab.editorScroll || 0;
+        preview.scrollTop = tab.previewScroll || 0;
+    };
+
+    const closeTab = tabId => {
+        const idx = openTabs.findIndex(tab => tab.id === tabId);
+        if (idx < 0) return;
+        const wasActive = openTabs[idx].id === activeTabId;
+        openTabs.splice(idx, 1);
+        if (!openTabs.length) {
+            const blank = {
+                id: nextTabId++,
+                name: 'untitled.md',
+                path: null,
+                type: 'markdown',
+                content: ''
+            };
+            openTabs.push(blank);
+        }
+        if (wasActive) {
+            const next = openTabs[Math.min(idx, openTabs.length - 1)];
+            activeTabId = null;
+            activateTab(next.id);
+            return;
+        }
+        renderTabs();
+    };
+
+    const createTabFromDocument = doc => {
+        const tab = {
+            id: nextTabId++,
+            name: doc.name || 'untitled.md',
+            path: doc.path || null,
+            type: doc.type || 'markdown',
+            content: doc.content || '',
+            editorScroll: 0,
+            previewScroll: 0
+        };
+        openTabs.push(tab);
+        return tab;
     };
 
     function filePathToFileUrl(filePath) {
@@ -297,9 +403,79 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
     };
 
+    const updateSearchCount = count => {
+        if (!previewSearchCount) return;
+        previewSearchCount.textContent = count ? `${currentSearchIndex + 1}/${count}` : '0/0';
+    };
+
+    const setActiveSearchHit = index => {
+        const hits = [...preview.querySelectorAll('.preview-search-hit')];
+        if (!hits.length) {
+            currentSearchIndex = -1;
+            updateSearchCount(0);
+            return;
+        }
+        currentSearchIndex = ((index % hits.length) + hits.length) % hits.length;
+        hits.forEach((hit, i) => hit.classList.toggle('active', i === currentSearchIndex));
+        updateSearchCount(hits.length);
+        hits[currentSearchIndex].scrollIntoView({ block: 'center', inline: 'nearest' });
+    };
+
+    const applyPreviewSearch = () => {
+        const query = currentSearchQuery.trim();
+        if (!query) {
+            currentSearchIndex = -1;
+            updateSearchCount(0);
+            return;
+        }
+
+        const walker = document.createTreeWalker(preview, NodeFilter.SHOW_TEXT, {
+            acceptNode(node) {
+                if (!node.nodeValue || !node.nodeValue.toLowerCase().includes(query.toLowerCase())) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                const parent = node.parentElement;
+                if (!parent || parent.closest('script, style, .preview-search-hit')) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        });
+
+        const nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        const needle = query.toLowerCase();
+        nodes.forEach(node => {
+            const text = node.nodeValue;
+            const fragment = document.createDocumentFragment();
+            let offset = 0;
+            let matchAt = text.toLowerCase().indexOf(needle, offset);
+            while (matchAt >= 0) {
+                fragment.append(document.createTextNode(text.slice(offset, matchAt)));
+                const mark = document.createElement('mark');
+                mark.className = 'preview-search-hit';
+                mark.textContent = text.slice(matchAt, matchAt + query.length);
+                fragment.append(mark);
+                offset = matchAt + query.length;
+                matchAt = text.toLowerCase().indexOf(needle, offset);
+            }
+            fragment.append(document.createTextNode(text.slice(offset)));
+            node.replaceWith(fragment);
+        });
+
+        const count = preview.querySelectorAll('.preview-search-hit').length;
+        if (!count) {
+            currentSearchIndex = -1;
+            updateSearchCount(0);
+            return;
+        }
+        setActiveSearchHit(currentSearchIndex < 0 ? 0 : currentSearchIndex);
+    };
+
     const updatePreview = () => {
         if (currentFileType === 'svg') {
             preview.innerHTML = input.value;
+            applyPreviewSearch();
             return;
         }
 
@@ -331,9 +507,11 @@ document.addEventListener('DOMContentLoaded', () => {
             preview.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
         }
 
+        applyPreviewSearch();
+
         const txt = input.value.trim();
-        wordCount.textContent = txt ? txt.split(/\s+/).length : 0;
-        charCount.textContent = input.value.length;
+        if (wordCount) wordCount.textContent = txt ? txt.split(/\s+/).length : 0;
+        if (charCount) charCount.textContent = input.value.length;
     };
 
     const readFile = file => new Promise((res, rej) => {
@@ -367,6 +545,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 await writable.write(content);
                 await writable.close();
                 currentFileName = handle.name || name;
+                const tab = getActiveTab();
+                if (tab) tab.name = currentFileName;
+                setCurrentDocumentMeta(tab || { name: currentFileName, path: currentFilePath, type: currentFileType });
+                renderTabs();
                 return;
             }
 
@@ -468,6 +650,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!result) return;
         currentFilePath = result.path;
         currentFileName = result.name;
+        const tab = getActiveTab();
+        if (tab) {
+            tab.path = currentFilePath;
+            tab.name = currentFileName;
+        }
+        setCurrentDocumentMeta(tab || { name: currentFileName, path: currentFilePath, type: currentFileType });
+        renderTabs();
     };
 
     const handleSave = async () => {
@@ -562,11 +751,8 @@ document.addEventListener('DOMContentLoaded', () => {
             revokeAssetObjectUrls();
             currentWorkspaceFiles = new Map();
         }
-        input.value = doc.content || '';
-        currentFileName = doc.name || 'untitled.md';
-        currentFilePath = doc.path || null;
-        currentFileType = doc.type || 'markdown';
-        updatePreview();
+        const tab = createTabFromDocument(doc);
+        activateTab(tab.id);
     };
 
     const loadDocumentFromServerPath = async filePath => {
@@ -694,7 +880,10 @@ document.addEventListener('DOMContentLoaded', () => {
         initWeb();
     }
 
-    input.addEventListener('input', () => { updatePreview(); });
+    input.addEventListener('input', () => {
+        syncActiveTabFromEditor();
+        updatePreview();
+    });
     clearBtn?.addEventListener('click', () => {
         if (confirm('모든 내용을 지우시겠습니까?')) {
             input.value = '';
@@ -703,8 +892,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     openFileBtn?.addEventListener('click', () => {
         if (isDesktop) {
-            window.desktopApi.openFile().then(doc => {
-                if (doc) loadDocument(doc);
+            window.desktopApi.openFile().then(result => {
+                const docs = Array.isArray(result) ? result : [result];
+                docs.filter(Boolean).forEach(doc => loadDocument(doc));
             });
             return;
         }
@@ -729,16 +919,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     fileInput?.addEventListener('change', async e => {
-        const [file] = e.target.files || [];
-        if (!file) return;
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
         try {
-            const content = await readFile(file);
-            loadDocument({
-                content,
-                name: file.name,
-                path: null,
-                type: isSvgFile(file) ? 'svg' : 'markdown'
-            });
+            for (const file of files) {
+                const content = await readFile(file);
+                loadDocument({
+                    content,
+                    name: file.name,
+                    path: null,
+                    type: isSvgFile(file) ? 'svg' : 'markdown'
+                });
+            }
         } catch {} finally {
             fileInput.value = '';
         }
@@ -747,6 +939,23 @@ document.addEventListener('DOMContentLoaded', () => {
     saveAsBtn?.addEventListener('click', () => handleSaveAs());
     previewFullscreenBtn?.addEventListener('click', () => togglePreviewFullscreen());
     preview.addEventListener('click', handlePreviewLinkClick);
+    tabsBar?.addEventListener('click', e => {
+        const tabButton = e.target.closest?.('.tab-btn');
+        if (!tabButton) return;
+        const tabId = Number(tabButton.dataset.tabId);
+        if (e.target.closest?.('.tab-close')) {
+            closeTab(tabId);
+            return;
+        }
+        activateTab(tabId);
+    });
+    previewSearchInput?.addEventListener('input', e => {
+        currentSearchQuery = e.target.value;
+        currentSearchIndex = -1;
+        updatePreview();
+    });
+    previewSearchNext?.addEventListener('click', () => setActiveSearchHit(currentSearchIndex + 1));
+    previewSearchPrev?.addEventListener('click', () => setActiveSearchHit(currentSearchIndex - 1));
     document.addEventListener('fullscreenchange', () => {
         setPreviewFullscreenState(document.fullscreenElement === previewPane);
     });
@@ -759,12 +968,23 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             handleSave();
         }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+            e.preventDefault();
+            previewSearchInput?.focus();
+            previewSearchInput?.select();
+        }
     });
     copyBtn.addEventListener('click', () => copyEditorSource(copyBtn));
     document.getElementById('copy-all-btn')?.addEventListener('click', e => copyPreviewContent(e.currentTarget));
     input.addEventListener('scroll', () => {
+        const tab = getActiveTab();
+        if (tab) tab.editorScroll = input.scrollTop;
         const p = input.scrollTop / (input.scrollHeight - input.clientHeight);
         preview.scrollTop = p * (preview.scrollHeight - preview.clientHeight);
+    });
+    preview.addEventListener('scroll', () => {
+        const tab = getActiveTab();
+        if (tab) tab.previewScroll = preview.scrollTop;
     });
     input.addEventListener('keydown', e => {
         if (e.key !== 'Enter') return;
