@@ -221,6 +221,41 @@ ipcMain.handle('dialog:save-pdf', async (_event, payload) => {
     }
 });
 
+ipcMain.handle('document:resolve-link', async (_event, payload) => {
+    try {
+        const { href, currentFilePath } = payload || {};
+        if (!currentFilePath) {
+            return { ok: false, error: '현재 문서의 전체 경로를 알 수 없습니다. 파일을 다시 열어주세요.' };
+        }
+
+        let cleanHref = String(href || '').split('#')[0].split('?')[0];
+        try {
+            cleanHref = decodeURIComponent(cleanHref);
+        } catch {
+            // 이미 디코딩된 경로면 그대로 사용
+        }
+        if (!cleanHref) return { ok: false, error: '링크 경로가 비어 있습니다.' };
+
+        const targetPath = path.resolve(path.dirname(currentFilePath), cleanHref);
+        const ext = path.extname(targetPath).toLowerCase();
+        if (ext && !['.md', '.markdown', '.txt', '.svg'].includes(ext)) {
+            return { ok: false, error: `Markdown 파일이 아닙니다:\n${targetPath}` };
+        }
+
+        try {
+            const doc = await readDocument(targetPath);
+            return { ok: true, doc };
+        } catch (error) {
+            if (error.code === 'ENOENT') {
+                return { ok: false, error: `파일을 찾을 수 없습니다:\n${targetPath}` };
+            }
+            throw error;
+        }
+    } catch (error) {
+        return { ok: false, error: error.message };
+    }
+});
+
 ipcMain.handle('app:open-external', async (_event, url) => {
     if (typeof url !== 'string' || !url.trim()) return false;
     await shell.openExternal(url);

@@ -528,6 +528,7 @@ body.preview-fullscreen #keep-preview,
     max-width: 100%;
     margin: 1rem 0;
     font-size: 0.95rem;
+    table-layout: auto;
 }
 
 .markdown-body th,
@@ -535,6 +536,9 @@ body.preview-fullscreen #keep-preview,
     border: 1px solid #333;
     padding: 10px 15px;
     text-align: center;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .markdown-body th {
