@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('desktopApi', {
     saveFile: payload => ipcRenderer.invoke('dialog:save-file', payload),
     savePdf: payload => ipcRenderer.invoke('dialog:save-pdf', payload),
     openExternal: url => ipcRenderer.invoke('app:open-external', url),
+    resolveMarkdownLink: payload => ipcRenderer.invoke('document:resolve-link', payload),
     onOpenFile: callback => {
         const handler = (_event, doc) => callback(doc);
         ipcRenderer.on('document:open', handler);

@@ -89,6 +89,76 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
     };
 
+    const safeDecode = value => {
+        try {
+            return decodeURIComponent(value);
+        } catch {
+            return value;
+        }
+    };
+
+    const isInternalMarkdownLink = href => {
+        if (!href || hasUrlScheme(href)) return false;
+        const clean = href.split('#')[0].split('?')[0];
+        return /\.(md|markdown)$/i.test(clean);
+    };
+
+    const resolveRelativeDocPath = rawPath => {
+        const normalized = normalizeRelPath(safeDecode(rawPath));
+        if (!normalized) return '';
+        const docDir = getCurrentDocumentDir();
+        return normalizeSegments(docDir ? `${docDir}/${normalized}` : normalized);
+    };
+
+    const openInternalMarkdownLink = async href => {
+        const clean = safeDecode(href.split('#')[0].split('?')[0]);
+        const combined = resolveRelativeDocPath(clean);
+
+        // Electron: main 프로세스가 현재 문서 경로 기준으로 실제 파일을 읽어 연다.
+        if (isDesktop && window.desktopApi?.resolveMarkdownLink && currentFilePath) {
+            const result = await window.desktopApi.resolveMarkdownLink({ href, currentFilePath });
+            if (result?.ok && result.doc) {
+                loadDocument(result.doc);
+                return true;
+            }
+            if (result?.error) {
+                alert(result.error);
+                return true;
+            }
+        }
+
+        if (currentWorkspaceFiles.size && combined) {
+            const file = currentWorkspaceFiles.get(combined);
+            if (file) {
+                loadDocument({
+                    content: await file.text(),
+                    name: combined.split('/').pop() || file.name,
+                    path: combined,
+                    type: 'markdown'
+                });
+                return true;
+            }
+        }
+
+        if (hasDocumentApi && combined) {
+            try {
+                // combined 가 절대경로(C:/...)면 그대로, scratch 상대경로면 서버가 ROOT 기준으로 해석한다.
+                await loadDocumentFromServerPath(combined);
+                return true;
+            } catch (error) {
+                console.warn('서버 문서 API로 링크를 열지 못했습니다.', error);
+            }
+        }
+
+        try {
+            await loadDocumentFromUrl(clean);
+            return true;
+        } catch (error) {
+            console.warn('상대 경로로 문서를 열지 못했습니다.', error);
+        }
+        return false;
+    };
+
     const handlePreviewLinkClick = event => {
         const link = event.target.closest?.('a[href]');
         if (!link || !preview.contains(link)) return;
@@ -97,6 +167,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (href.startsWith('#')) return;
 
         event.preventDefault();
+
+        if (isInternalMarkdownLink(href)) {
+            openInternalMarkdownLink(href).then(opened => {
+                if (opened) return;
+                openLinkOutsideApp(href).catch(error => {
+                    console.error(error);
+                    alert('링크를 열지 못했습니다.');
+                });
+            });
+            return;
+        }
+
         openLinkOutsideApp(href).catch(error => {
             console.error(error);
             alert('링크를 열지 못했습니다.');
@@ -295,6 +377,31 @@ document.addEventListener('DOMContentLoaded', () => {
         return block ? `<div class="latex-block">${img}</div>` : img;
     }
 
+    // GFM 표에서 셀 안 인라인 코드(`...`)에 들어 있는 파이프(|)는 열 구분자로
+    // 오해되어 뒷부분이 잘린다. 표 행에 한해 코드 스팬 내부 파이프를 \| 로 이스케이프한다.
+    function escapeTablePipesInCode(md) {
+        const lines = md.split('\n');
+        const isDelimRow = line =>
+            /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$/.test(line) && line.includes('-');
+        const tableRow = new Array(lines.length).fill(false);
+        for (let i = 1; i < lines.length; i++) {
+            if (isDelimRow(lines[i]) && lines[i - 1].includes('|') && lines[i - 1].trim() !== '') {
+                tableRow[i - 1] = true;
+                tableRow[i] = true;
+                let j = i + 1;
+                while (j < lines.length && lines[j].includes('|') && lines[j].trim() !== '') {
+                    tableRow[j] = true;
+                    j++;
+                }
+            }
+        }
+        return lines.map((line, i) => {
+            if (!tableRow[i] || isDelimRow(line)) return line;
+            return line.replace(/(`+)([^`\n]*?)\1/g, (whole, ticks, body) =>
+                `${ticks}${body.replace(/\|/g, '\\|')}${ticks}`);
+        }).join('\n');
+    }
+
     function processMath(value) {
         const codePh = [];
         value = value.replace(/(```[\s\S]*?```|`[^`\n]+`|<pre[\s\S]*?<\/pre>)/g, m => {
@@ -480,6 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let value = input.value;
+        value = escapeTablePipesInCode(value);
         value = value.replace(
             /(?:\(단위\s?:\s?.+?\)\s*)?(?:\\arrayrulecolor\s*\{.*?\}\s*)?\\begin\s*\{tabular\}[\s\S]*?\\end\s*\{tabular\}/g,
             m => `<pre class="latex-table-code">\n${m}\n</pre>`
@@ -823,7 +931,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const detectDocumentApi = async () => {
         try {
-            const response = await fetch('/api/document?path=__codex_probe__', { method: 'GET' });
+            // 빈 path는 API가 있으면 400(Invalid path), 정적 서버면 404를 돌려준다.
+            // 존재하지 않는 파일명으로 probe하면 API가 있어도 404라 감지에 실패했었다.
+            const response = await fetch('/api/document?path=', { method: 'GET' });
             return response.status !== 404;
         } catch {
             return false;
@@ -887,7 +997,9 @@ document.addEventListener('DOMContentLoaded', () => {
     clearBtn?.addEventListener('click', () => {
         if (confirm('모든 내용을 지우시겠습니까?')) {
             input.value = '';
+            syncActiveTabFromEditor();
             updatePreview();
+            input.focus();
         }
     });
     openFileBtn?.addEventListener('click', () => {
@@ -898,10 +1010,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             return;
         }
-        if (hasDocumentApi) {
-            promptAndLoadLocalDocument();
-            return;
-        }
+        // 브라우저에서는 항상 OS 파일 다이얼로그를 사용한다.
+        // (경로 입력 prompt 는 서버 폴더 밖 파일을 못 열어 혼란을 주므로 제거)
         fileInput.click();
     });
     openFolderBtn?.addEventListener('click', () => {
